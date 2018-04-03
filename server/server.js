@@ -12,11 +12,12 @@ var app = express();
 
 app.use(bodyParser.json());
 
-app.post('/todos', (req, res) => {
+app.post('/todos', authenticate, (req, res) => {
 
 	var todo = new Todo({
 
-		text:req.body.text
+		text:req.body.text,
+		_creator:req.user._id
 
 	});
 
@@ -27,9 +28,11 @@ app.post('/todos', (req, res) => {
 	});
 });
 
-app.get('/todos', (req, res) => {
+app.get('/todos', authenticate, (req, res) => {
 	
-	Todo.find().then((todos) => {
+	Todo.find({
+		_creator:req.user._id
+	}).then((todos) => {
 		res.send({
 			todos
 		});
@@ -147,9 +150,42 @@ app.post('/users', (req, res) => {
 	});
 });
 
+app.post('/users/login', (req, res) => {
+
+	var body = _.pick(req.body, ['email', 'password']);
+
+	user.findByCredentials(body.email, body.password)
+	.then((user) => {
+
+		return user.generateAuthToken().then((token) => {
+
+			res.header('x-auth', token).send(user);
+
+		});
+
+	}).catch((e) => {
+
+		res.status(400).send();
+
+	});
+
+});
+
 app.get('/users/me', authenticate, (req,res) => {
 
 	res.send(req.user);
+
+});
+
+app.delete('/users/me/token', authenticate, (req, res) => {
+
+	req.user.removeToken(req.token).then(() => {
+
+		res.status(200).send();
+
+	}, () => {
+		res.status(400).send();
+	});
 
 });
 
